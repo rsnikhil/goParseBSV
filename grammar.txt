@@ -1,0 +1,694 @@
+This is a grammar of BSV, extracted out of the BSV Reference Guide.
+The BSV Reference Guide provides BNF for the grammar, scattered across
+the various sections of the document.
+
+This document collects all those BNF rules and simplifies them and
+reorganizes them somewhat.  At the bottom of this document are some
+notes about differences (mostly small and benign) with the grammar in
+the Reference Guide.
+
+// ================================================================
+Meta notation:
+
+  Terminal                   'x'      i.e., with single quotes
+  Non-terminal                x       i.e., without single quotes
+  Alternatives                x | y
+  Optional item               [ x ]
+  0 or more occurrences       { x }
+  Comments                    // comment
+
+// ================================================================
+// Packages
+
+package ::             ::= 'package' packageIde ';'
+                              { exportDecl }
+                              { importDecl }
+                              { packageStmt }
+                            'endpackage' [ ':' packageIde ]
+
+exportDecl             ::= 'export' exportItem { ',' exportItem } ';'
+exportItem             ::= identifier [ '('  '..'  ')' ]
+                         | Identifier [ '('  '..'  ')' ]
+                         | packageIde '::'  '*'
+
+importDecl             ::= 'import' importItem { ',' importItem } ';'
+importItem             ::= packageIde '::'  '*'
+
+packageStmt            ::= interfaceDecl
+                         | typeDef
+                         | typeclassDef
+                         | typeclassInstanceDef
+                         | externModuleImport
+                         | externCImport                                            // #5
+                         | varDecl
+                         | functionDef
+                         | moduleDef                                                // #3
+
+packageIde             ::= Identifier
+
+// ================================================================
+// Statement: Interface Declarations
+
+interfaceDecl          ::= [ attributeInstances ]
+                           'interface' typeDefType ';'
+                              { interfaceMemberDecl }
+                           'endinterface' [ ':' typeIde ]
+
+interfaceMemberDecl    ::= methodProto | subinterfaceDecl
+
+methodProto            ::= [ attributeInstances ]
+                           'method' type identifier [ '(' methodProtoFormals ')' ] ';'    #20
+methodProtoFormals     ::= methodProtoFormal { ',' methodProtoFormal }
+methodProtoFormal      ::= [ attributeInstances ] type identifier
+
+subinterfaceDecl       ::= [ attributeInstances ]
+                           'interface' type identifier;                                   #30
+
+// ================================================================
+// Typedefs
+
+typeDef                ::= typedefSynonym
+                         | typedefEnum
+                         | typedefStruct
+                         | typedefTaggedUnion
+
+typeDefType            ::= typeIde [ typeFormals ]
+typeFormals            ::= '#' '(' typeFormal { ',' typeFormal } ')'
+typeFormal             ::= [ 'numeric' ] 'type' typeIde
+
+// Synonym typedefs
+typedefSynonym         ::= 'typedef' type typeDefType ';'
+
+// Enum typedefs
+typedefEnum            ::= 'typedef' 'enum' { typedefEnumElements } Identifier [ derives ] ';'
+typedefEnumElements    ::= typedefEnumElement { ',' typedefEnumElement }
+typedefEnumElement     ::= Identifier [ '=' intLiteral ]
+                         | Identifier '[' intLiteral ']' [ '=' intLiteral ]
+                         | Identifier '[' intLiteral ':' intLiteral ']' [ '=' intLiteral ]
+
+// Struct and taggedunion typedefs
+typedefStruct          ::= 'typedef' 'struct' '{'
+                              { structMember }
+                           '}' typeDefType [ derives ] ';'
+
+typedefTaggedUnion     ::= 'typedef' 'union' 'tagged' '{'
+                              { unionMember }
+                           '}' typeDefType [ derives ] ';'
+
+structMember           ::= type identifier ';'
+                         | subUnion identifier ';'
+
+unionMember            ::= type Identifier ';'
+                         | subStruct Identifier ';'
+                         | subUnion Identifier ';'
+                         | 'void' Identifier ';'
+
+subStruct              ::= 'struct' '{'
+                              { structMember }
+                           '}'
+subUnion               ::= 'union' 'tagged' '{'
+                              { unionMember }
+                           '}'
+
+derives                ::= 'deriving' '(' typeclassIde { ',' typeclassIde } ')'
+
+// ================================================================
+// Variable declarations and initialization
+
+varDecl                ::= type varInit { ',' varInit } ';'
+                         | type    identifier '<-' expression ';'
+                         | 'let'   identifier '='  expression ';'
+                         | 'let'   identifier '<-' expression ';'
+                         | 'match' pattern    '='  expression ';'
+
+varInit                ::= identifier [ arrayDims ] [ '=' expression ]
+arrayDims              ::= '[' expression ']' { '[' expression ']' }
+
+// ================================================================
+// Typeclass definitions
+
+typeclassDef           ::= 'typeclass' typeclassIde typeFormals [ provisos ] [ typedepends ] ';'
+                              { overloadedDef }
+                           'endtypeclass' [ ':' typeclassIde ]
+typeclassIde           ::= Identifier
+
+typeFormals            ::= '#' '(' typeFormal { ',' typeFormal } ')'
+typeFormal             ::= [ 'numeric' ] 'type' typeIde
+typedepends            ::= 'dependencies' '(' typedepend { ',' typedepend } ')'
+typedepend             ::= typelist 'determines' typelist
+typelist               ::= typeIde
+                         | '(' typeIde { ',' typeIde } ')'
+overloadedDef          ::= functionProto
+                         | moduleProto                                                     #13
+                         | varDecl
+
+// ================================================================
+// Typeclass instance definitions
+
+typeclassInstanceDef   ::= 'instance' typeclassIde '#' '(' type { ',' type } ')' [ provisos ] ';'
+                              { varAssign ';' | functionDef | moduleDef }
+                           'endinstance' [ ':' typeclassIde ]
+
+// ================================================================
+// Module Declarations
+
+moduleDef              ::= [ attributeInstances ]
+                           moduleProto
+                              { moduleStmt }
+                           'endmodule' [ ':' identifier ]
+moduleProto            ::= 'module' [ '[' type ']' ] identifier
+                              [ moduleFormalParams ]
+                              '(' [ moduleFormalArgs ] ')' [ provisos ] ';'
+moduleFormalParams     ::= '#' '(' moduleFormalParam { ',' moduleFormalParam } ')'
+moduleFormalParam      ::= [ attributeInstances ] [ 'parameter' ] type identifier
+moduleFormalArgs       ::= [ attributeInstances ] type
+                         | [ attributeInstances ] type identifier
+                           { ',' [ attributeInstances ] type identifier }
+moduleStmt             ::= moduleInst                                                       #15
+                         | methodDef
+                         | subinterfaceDef
+                         | rule
+			 | Stmt
+
+// ----------------
+// 5.4.1: Short form instantiation
+
+moduleInst             ::= [ attributeInstances ]
+                         | type identifier '<-' moduleApp ';'
+moduleApp              ::= identifier
+                           [ '(' moduleActualParamArg { ',' moduleActualParamArg }  ')' ]    #40
+
+moduleActualParamArg   ::= expression
+                         | 'clocked_by' expression
+                         | 'reset_by'   expression
+
+// ----------------
+// 5.4.2: Long form instantiation
+// NOTE: Not supported in goParseBSV.  Obsolete (still exists in some very old BSV code).
+
+moduleInst             ::= [ attributeInstances ]
+                           type identifier '(' ')' ';'
+                           moduleApp2 identifier [ '(' moduleActualArgs ')' ] ';'                    #50
+moduleApp2             ::= identifier [ '#' '(' moduleActualParam { ',' moduleActualParam } ')' ]
+moduleActualParam      ::= expression
+moduleActualArgs       ::= moduleActualArg { ',' moduleActualArg }
+moduleActualArg        ::= expression
+                         | 'clocked_by' expression
+                         | 'reset_by'   expression
+
+// ----------------
+// 5.5 Interface definition (definition of methods)
+
+methodDef              ::= 'method' [ type ] identifier [ '(' [ methodFormals ] ')' ] [ implicitCond ] ';'    #60
+                              functionBody
+                           'endmethod' [ ':' identifier ]
+methodFormals          ::= methodFormal { ',' methodFormal }
+methodFormal           ::= [ type ] identifier
+implicitCond           ::= 'if' '(' condPredicate ')'
+
+// 5.5.2 Definition of subinterfaces
+
+subinterfaceDef        ::= 'interface' Identifier identifier ';'
+                              { interfaceStmt }
+                           'endinterface' [ ':' identifier ]
+interfaceStmt          ::= methodDef
+                         | subinterfaceDef
+
+// 5.5.3 Definition of methods and subinterfaces by assignment
+
+methodDef              ::= 'method' [ type ] identifier '(' methodFormals ')' [ implicitCond ]
+                               '=' expression ';'                                                    #80
+subinterfaceDef        ::= 'interface' [ type ] identifier '=' expression ';'
+
+// ----------------
+// 5.6 Rules in module definitions
+
+rule                   ::= [ attributeInstances ]
+                           'rule' identifier [ ruleCond ] ';'
+                               ruleBody
+                           'endrule' [ ':' identifier ]
+ruleCond               ::= '(' condPredicate ')'
+ruleBody               ::= { actionStmt }
+
+// ================================================================
+// Function definition
+
+functionDef            ::= [ attributeInstances ]
+                           functionProto
+                              { Stmt }
+                           'endfunction' [ ':' identifier ]
+                         | functionProto '=' expression ';'                                           #84
+
+functionProto          ::= 'function' type identifier [ '(' functionFormals ')' ] [ provisos ] ';'    #85
+functionFormals        ::= functionFormal { ',' functionFormal }
+functionFormal         ::= type identifier
+
+// ================================================================
+// Importing C functions
+
+externCImport          ::= 'import' '"BDPI"' [ identifier '=' ]
+                               'function' type identifier '(' [ CFuncArgs ] ')' [ provisos ] ';'
+
+CFuncArgs              ::= CFuncArg { ',' CFuncArg }
+CFuncArg               ::= type [ identifier ]
+
+// ================================================================
+// Variable assignment (for variables already declared)
+
+varAssign              ::= lValue '=' expression ';'
+                         | identifier '<-' expression ';'
+
+lValue                 ::= identifier
+                         | lValue '.' identifier
+                         | lValue '[' expression ']'
+                         | lValue '[' expression ':' expression ']'
+
+// ================================================================
+// Types
+
+type                   ::= typePrimary
+                         | typePrimary ( type { ',' type } )                        // #10; OBSOLETE
+
+typePrimary            ::= typeIde [ '#' '(' type { ',' type } ')' ]                // #11
+                         | typeNat
+                         | 'bit' [ typeNat ':' typeNat ]
+
+typeIde                ::= Identifier
+                         | 'SizeOf'
+
+typeNat                ::= decDigits
+
+// ================================================================
+// Expressions
+
+expression             ::= condExpr
+                         | operatorExpr
+                         | exprPrimary
+
+condExpr               ::= condPredicate '?' expression ':' expression
+
+operatorExpr           ::= unop expression
+                         | expression binop expression
+
+// The following operators are in order of decreasing precedence
+unop                   ::= '+' | '-' | '!' | '~'
+                         | '&'
+                         | '~&'
+                         | '|'
+                         | '~|'
+                         | '^'
+                         | '^~' | '~^'
+binop                  ::= '*' | '/' | '%'
+                         | '+' | '-'
+                         | '<<' | '>>'
+                         | '<=' | '>=' | '<' | '>'
+                         | '==' | '!='
+                         | '&'
+                         | '^'
+                         | '^~' | '~^'
+                         | '|'
+                         | '&&'
+                         | '||'
+
+exprPrimary            ::= '(' expression ')'
+                         | exprPrimary '.' identifier
+                         | identifier
+                         | intLiteral
+                         | realLiteral
+                         | stringLiteral
+                         | '?'
+                         | 'valueof' '(' type ')'
+                         | 'valueOf' '(' type ')'
+			 | 'return' expression ';'
+                         | bitConcat
+                         | bitSelect
+                         | functionCall
+                         | methodCall
+                         | typeAssertion
+                         | structExpr
+                         | taggedUnionExpr
+                         | interfaceExpr
+                         | rulesExpr
+                         | beginEndBlock
+                         | actionBlock
+                         | actionValueBlock
+			 | seqFsmStmt
+			 | parFsmStmt
+
+bitConcat              ::= '{' expression { ',' expression } '}'
+bitSelect              ::= exprPrimary '[' expression [ ':' expression ] ']'
+
+functionCall           ::= exprPrimary [ '(' [ expression { ',' expression } ] ')' ]
+methodCall             ::= exprPrimary '.' identifier [ '(' [ expression { ',' expression } ] ')' ]
+
+typeAssertion          ::= type '’' bitConcat
+                         | type '’' '(' expression ')'
+
+structExpr             ::= Identifier '{' memberBind { ',' memberBind } '}'
+taggedUnionExpr        ::= 'tagged' Identifier '{' memberBind { ',' memberBind } '}'
+                         | 'tagged' Identifier exprPrimary
+memberBind             ::= identifier ':' expression
+
+interfaceExpr          ::= 'interface' Identifier ';'
+                              { interfaceStmt }
+                           'endinterface' [ ':' Identifier ]
+interfaceStmt          ::= methodDef
+                         | subinterfaceDef
+                         | expressionStmt
+
+rulesExpr              ::= [ attributeInstances ]
+                           'rules' [ ':' identifier ]
+                               rulesStmt
+                           'endrules' [ ':' identifier ]
+rulesStmt              ::= rule
+                         | expressionStmt
+
+// ----------------
+// Blocks: begin-end, action-endaction, actionvalue-endactionvalue
+// and bodies of functions, methods and rules
+
+BeginEndBlock          ::= 'begin' [ ':' identifier ]
+                              { Stmt }
+                              expression
+                           'end' [ ':' identifier ]
+
+actionBlock            ::= 'action' [ ':' identifier ]
+                              { Stmt }
+                           'endaction' [ ':' identifier ]
+
+actionValueBlock       ::= 'actionvalue' [ ':' identifier ]
+                              { Stmt }
+                           'endactionvalue' [ ':' identifier ]
+
+regWrite               ::= expression '<=' expression                                  #90
+
+// ----------------
+// General statements
+
+Stmt                   ::= expression
+                         | varDecl
+                         | varAssign
+                         | functionDef
+                         | moduleDef
+                         | BeginEndBlock
+                         | If
+                         | Case
+                         | For
+                         | While
+
+// ----------------
+// Conditionals
+
+If                     ::= 'if' '(' condPredicate ')'
+                              Stmt
+                           [ 'else'
+                              Stmt ]
+
+Case                   ::= 'case' '(' expression ')'
+                              { CaseItem }
+                              [ DefaultItem ]
+                           'endcase'
+
+                         | 'case' '(' expression ')' 'matches'
+                              { CasePatItem }
+                              [ DefaultItem ]
+                           'endcase'
+CaseItem               ::= expression { , expression } ':' Stmt
+CasePatItem            ::= pattern { '&&&' expression } ':' Stmt
+DefaultItem            ::= 'default' [ ':' ] Stmt
+
+// ----------------
+// Static loops
+
+While                  ::= 'while' '(' expression ')'
+                              Stmt
+For                    ::= 'for' '(' forInit ';' forTest ';' forIncr ')'
+                              Stmt
+forInit                ::= forOldInit | forNewInit
+forOldInit             ::= simpleVarAssign { ',' simpleVarAssign }
+simpleVarAssign        ::= identifier '=' expression
+forNewInit             ::= type identifier '=' expression { ',' simpleVarDeclAssign }
+simpleVarDeclAssign    ::= [ type ] identifier '=' expression
+forTest                ::= expression
+forIncr                ::= varIncr { ',' varIncr }
+varIncr                ::= identifier = expression
+
+// ================================================================
+// Cond predicates occur in method def implicit conditions, rule
+// conditions, if expressions, pattern-matching case expressions, ...
+
+condPredicate          ::= exprOrCondPattern { '&&&' exprOrCondPattern }
+exprOrCondPattern      ::= expression
+                         | expression 'matches' pattern
+
+// ================================================================
+// Patterns occur in condPredicates
+
+pattern                ::= '.' identifier
+                         | '.*'
+                         | constantPattern
+                         | taggedUnionPattern
+                         | structPattern
+                         | tuplePattern
+
+constantPattern        ::= intLiteral
+                         | realLiteral
+                         | stringLiteral
+                         | Identifier
+
+taggedUnionPattern     ::= 'tagged' Identifier [ pattern ]
+structPattern          ::= 'tagged' Identifier '{' identifier ':' pattern { ',' identifier ':' pattern } '}'
+tuplePattern           ::= '{' pattern { ',' pattern } '}'
+
+// ================================================================
+// Attributes
+
+attributeInstances     ::= attributeInstance
+                           { attributeInstance }
+attributeInstance      ::= '(*' attrSpec { ',' attrSpec } '*)'
+attrSpec               ::= attrName [ '=' expression ]
+attrName               ::= identifier
+                         | Identifier
+
+// ================================================================
+// Provisos
+
+provisos               ::= 'provisos' '(' proviso { ',' proviso } ')'
+proviso                ::= Identifier '#' '(' type { ',' type } ')'
+
+// ================================================================
+// StmtFSM
+
+fsmStmt                ::= exprFsmStmt
+                         | seqFsmStmt
+                         | parFsmStmt
+                         | ifFsmStmt
+                         | whileFsmStmt
+                         | repeatFsmStmt
+                         | forFsmStmt
+                         | returnFsmStmt
+
+exprFsmStmt            ::= regWrite ';'
+                         | expression ';'
+
+seqFsmStmt             ::= 'seq' fsmStmt { fsmStmt } 'endseq'
+
+parFsmStmt             ::= 'par' fsmStmt { fsmStmt } 'endpar'
+
+ifFsmStmt              ::= 'if' expression fsmStmt
+                           [ 'else' fsmStmt ]
+
+returnFsmStmt          ::= 'return' ';'
+
+whileFsmStmt           ::= 'while' '(' expression ')'
+                              loopBodyFsmStmt
+
+forFsmStmt             ::= 'for' '(' fsmStmt ';' expression ';' fsmStmt ')'
+                              loopBodyFsmStmt
+
+repeatFsmStmt          ::= 'repeat' '(' expression ')'
+                              loopBodyFsmStmt
+
+loopBodyFsmStmt        ::= fsmStmt
+                         | 'break' ';'
+                         | 'continue' ';'
+
+// ================================================================
+// KEYWORDS (cannot be used as identifiers)
+
+  Action
+  ActionValue
+  BVI
+  C
+  CF
+  E
+  SB
+  SBR
+  action                            endaction
+  actionvalue                       endactionvalue
+  ancestor
+  begin
+  bit
+  case                              endcase
+  clocked_by
+  default
+  default_clock
+  default_reset
+  dependencies
+  deriving
+  determines
+  e
+  else
+  enable
+  end
+  enum
+  export
+  for
+  function                          endfunction
+  if
+  ifc_inout
+  import
+  inout
+  input_clock
+  input_reset
+  instance                          endinstance
+  interface                         endinterface
+  let
+  match
+  matches
+  method                            endmethod
+  module                            endmodule
+  numeric
+  output_clock
+  output_reset
+  package                           endpackage
+  parameter
+  path
+  port
+  provisos
+  ready
+  reset_by
+  return
+  rule                              endrule
+  rules                             endrules
+  same_family
+  schedule
+  struct
+  tagged
+  type
+  typeclass                         endtypeclass
+  typedef
+  union
+  valueOf
+  valueof
+  void
+  while
+
+// ================================================================
+// System task/function names
+
+displayTaskName        ::= '$display'  | '$displayb'  | '$displayo'  | '$displayh'
+                         | '$write'    | '$writeb'    | '$writeo'    | '$writeh'
+                         | '$format'
+                         | '$fopen'    | '$fclose'
+                         | '$fdisplay' | '$fdisplayb' | '$fdisplayo' | '$fdisplayh'
+                         | '$fwrite'   | '$fwriteb'   | '$fwriteo'   | '$fwriteh'
+                         | '$swrite'   | '$swriteb'   | '$swriteo'   | '$swriteh'   | '$sformat'
+                         | '$swriteAV' | '$swritebAV' | '$swriteoAV' | '$swritehAV' | '$sformatAV'
+                         | '$fgetc'    | '$fungetc'
+                         | '$fflush'
+                         | '$finish'
+                         | '$stop'
+                         | '$dumpvars' | '$dumpon'    | '$dumpoff'
+                         | '$time'     | '$stime'
+                         | '$realtobits'
+                         | '$bitstoreal'
+                         | '$test$plusargs'
+
+// ================================================================
+// DIFFERENCES FROM GRAMMAR IN REFERENCE GUIDE
+
+#3  Sec.3, p.21, fourth line of production for packageStmt
+    A 'varAssign' should not be allowed here? Must have a type decl or let?
+
+#5  Sec.3, p.21, production for 'packageStmt'
+    Missing an alternative: 'externCImport'
+
+#10 Sec.4, p.23, second production for 'type'
+    Really? we have a typePrimary (t,..,t) for a Function type?
+    Why don't we just have 'Function #(ResultType, Arg1Type, ..., ArgNType)'?
+
+#11 Sec.4, p.23, production for 'typePrimary'
+    Missing alternative: typevar
+
+#13 Sec.14.1.2, p.122, production for 'overloadedDef'
+    Missing: 'moduleProto'
+
+#15 Sec.5.4, p.34, production for 'moduleStmt'
+    Sec 9.6, p.71, production for 'actionStmt'
+    Sec 9.7, p.71, production for 'actionValueStmt'
+    Sec 12.8, p.92, all the productions in this section
+
+    Removed productions for everything in 12.8 ('systemTaskStmt',
+    'systemTaskCall', 'displayTaskName', 'fileTaskName',
+    'stringTaskName', 'stringAVTaskName'. Grammatically, these are
+    just function application where the function happens to be a
+    system task.
+
+#20 Sec.5.2, p.30, second line of production for 'methodProto'
+    The parens around formals are shown compulsory, but they should
+    be optional (inside the grammar square brackets)
+
+#30 Sec.5.2.1, p.31, second line of production for 'subinterfaceDecl'
+    'interface typeDefType' should be 'interface type identifier'
+    Note: 'typeDefType' is a definee, and contain a 'kind' annocation
+          ('numeric type' or 'type')
+          whereas a 'type' is a type expression, not a definee.
+
+#40 Sec.5.4.1, p.34, second line of production for 'moduleApp'
+    The parens around args are shown compulsory, but they should
+    be optional (inside the grammar square brackets)
+
+#50 Sec.5.4.2, p.35, third line of production for 'moduleInst'
+    The parens around args are shown compulsory, but they should
+    be optional (inside the grammar square brackets)
+
+#60 Sec.5.5, p.36, first line of production for 'methodDef'
+    Grammar shows compulsory parens and at least one 'methodFormal'.
+    Parens should be optional, and zero or more 'methodFormal's ares ok
+
+#70 Sec.5.5.2, p.39, third line of production for 'interfaceStmt'
+    Really? Can be an expressionStmt? I never use this.
+
+#80 Sec.5.5.3, p.39, production for 'methodDef'
+    The parens around formals are shown compulsory, but they should
+    be optional (inside the grammar square brackets)
+
+#84 Sec 8.8.1, p.67, production for 'functionProto'
+    Actually this should be:
+        'functionDef ::= functionProto = expression;'
+
+#85 Sec.8.8, p.66, production for 'functionProto'
+    The parens around formals are shown compulsory, but they should
+    be optional (inside the grammar square brackets)
+
+
+#90 Sec.8.4, p.60, second line of production for 'regWrite'
+    Unclear why we require parentheses.  Any expr that evals to a Reg #(t) should be ok.
+
+    Sec.8.4.1, 8.4.2, 8.4.3 (array-selection, bit-selection and struct member selection)
+    are redundant.  The unifying way of saying this is to talk about register lvalues:
+        regWrite   := regLValue <= expression
+        regLValue  := expression
+                    | regLValue arrayIndexes
+                    | regLValue [ expression : expression ]
+                    | regLValue '.' identifier
+        where 'expression' evaluates to Reg #(t) and the array-select,
+        bit-select and member-select express a partial update.  Note:
+        Since 'expression' itself can contain array-selects and
+        member-selects, it may be ambiguous where we place the boundary
+        between the 'expression' and the 'regLValue'.
+        We can resolve this as the sub-expr that has type 'Reg #(t)',
+        at which point we insert the ._write()
+
+// ================================================================
