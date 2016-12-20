@@ -1,3 +1,5 @@
+// Copyright (c) 2016-2017 Rishiyur Nikhil and Bluespec, Inc.  All Rights Reserved.
+
 // Part of goParseBSV, a parser for BSV files
 // This part defines parsers for statements
 

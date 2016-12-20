@@ -1,3 +1,5 @@
+// Copyright (c) 2016-2017 Rishiyur Nikhil and Bluespec, Inc.  All Rights Reserved.
+
 // This is back-end processor of ASTs created by goParseBSV, a parser
 // for BSV files.
 

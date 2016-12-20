@@ -1,3 +1,5 @@
+// Copyright (c) 2016-2017 Rishiyur Nikhil and Bluespec, Inc.  All Rights Reserved.
+
 // goParseBSV is a parser for BSV files.
 // This is the top-level file of the parser.
 
