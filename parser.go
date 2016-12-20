@@ -8,7 +8,6 @@ import (
 	"fmt"
 	"os"
 	"strings"
-	"utils"
 )
 
 // ================================================================
@@ -59,14 +58,14 @@ func TokenIsIde (lexer *Lexer) (bool) {
 func tokenIsVarIde (token *Token) (bool) {
 	return ((token != nil) &&
 		(token.TokType == TokIde) &&
-		(utils.ByteIsLower (token.StringVal [0]) || (token.StringVal [0] == '_')))
+		(ByteIsLower (token.StringVal [0]) || (token.StringVal [0] == '_')))
 }
 
 // tokenIsConstIde checks for BSV constant identifiers, i.e., first letter is uppercase
 func tokenIsConstIde (token *Token) (bool) {
 	return ((token != nil) &&
 		(token.TokType == TokIde) &&
-		(utils.ByteIsUpper (token.StringVal [0])))
+		(ByteIsUpper (token.StringVal [0])))
 }
 
 func TokenIsKeyword (lexer *Lexer, s string) (bool) {

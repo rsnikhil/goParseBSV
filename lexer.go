@@ -9,7 +9,6 @@ import (
 	"io"
 	"strings"
 	"strconv"
-	"utils"
 )
 
 // ================================================================
@@ -441,19 +440,19 @@ func getDigitString (lexer *Lexer, base int) () {
 		if lexer.ch == '_' {
 			lexer.Token.StringVal += string (lexer.ch)
 			getchar (lexer, true)
-		} else if (base == 10) && utils.ByteIsDigit (lexer.ch) {
+		} else if (base == 10) && ByteIsDigit (lexer.ch) {
 			lexer.Token.StringVal += string (lexer.ch)
 			buffer += string (lexer.ch)
 			getchar (lexer, true)
-		} else if (base == 16) && utils.ByteIsHexdigit (lexer.ch) {
+		} else if (base == 16) && ByteIsHexdigit (lexer.ch) {
 			lexer.Token.StringVal += string (lexer.ch)
 			buffer += string (lexer.ch)
 			getchar (lexer, true)
-		} else if (base == 8) && utils.ByteIsOctdigit (lexer.ch) {
+		} else if (base == 8) && ByteIsOctdigit (lexer.ch) {
 			lexer.Token.StringVal += string (lexer.ch)
 			buffer += string (lexer.ch)
 			getchar (lexer, true)
-		} else if (base == 2) && utils.ByteIsBindigit (lexer.ch) {
+		} else if (base == 2) && ByteIsBindigit (lexer.ch) {
 			lexer.Token.StringVal += string (lexer.ch)
 			buffer += string (lexer.ch)
 			getchar (lexer, true)
@@ -480,7 +479,7 @@ func GetToken (lexer *Lexer) () {
 
 	// Skip whitespace and comments
 	for {
-		if utils.ByteIsWhitespace (lexer.ch) {
+		if ByteIsWhitespace (lexer.ch) {
 			getchar (lexer, true)
 		} else if (lexer.ch == 0) {
 			break
@@ -538,13 +537,13 @@ func GetToken (lexer *Lexer) () {
 	case lexer.ch == 0: {
 		lexer.Token.TokType = TokEof
 	}
-	case utils.ByteIsAlpha (lexer.ch) || (lexer.ch == '$') || (lexer.ch == '_'): {
+	case ByteIsAlpha (lexer.ch) || (lexer.ch == '$') || (lexer.ch == '_'): {
 		for {
 			lexer.Token.StringVal += string (lexer.ch)
 			getchar (lexer, true)
-			if utils.ByteIsAlpha (lexer.ch) ||
+			if ByteIsAlpha (lexer.ch) ||
 				(lexer.ch == '_') ||
-				utils.ByteIsDigit (lexer.ch) {
+				ByteIsDigit (lexer.ch) {
 			} else {
 				break
 			}
@@ -555,7 +554,7 @@ func GetToken (lexer *Lexer) () {
 			lexer.Token.TokType = TokIde
 		}
 	}
-	case utils.ByteIsDigit (lexer.ch): {
+	case ByteIsDigit (lexer.ch): {
 		lexer.Token.TokType  = TokInteger
 		lexer.Token.IntWidth = -1    // unspecified width
 		getDigitString (lexer, 10)
