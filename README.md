@@ -12,6 +12,18 @@ This parser is intended to enable people to write different back-ends
 for BSV, for example to feed into formal verification tools, IDEs,
 cross-reference tools, dependency analyzers, etc.
 
+Caution: It is a fairly substantial task to write an entirely new BSV
+compiler (BSV to Verilog) starting with this back end.  In addition to
+adding remaining front-end tasks (import chasing, type-checking,
+static elaboration), one would have to write a "rule scheduler" that
+guarantees global rule atomicity.  Note that this is a non-local
+(non-modular) property, i.e., not restricted to just the module
+containing a rule, but reaching through its method calls into
+neighboring modules and, transitively through those method calls, into
+more remote modules, and even into imported Verilog modules. Further,
+this non-modular property is necessary even in the face of separate
+compilation.
+
 ----------------------------------------------------------------
 
 ## Example build-and-run
